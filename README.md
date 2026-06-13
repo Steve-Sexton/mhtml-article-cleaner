@@ -40,6 +40,8 @@ pip install .
 
 ## Usage
 
+![Example run of clean_mhtml_article.py cleaning an MHTML file and embedding its images](docs/usage-example.png)
+
 ### Basic usage (filename derived from title)
 
 ```bash
