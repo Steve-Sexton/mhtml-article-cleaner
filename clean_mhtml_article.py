@@ -64,6 +64,24 @@ _HS_WRAPPER_RE = re.compile(r'hs_cos_wrapper')
 # body. Only narrow to a wrapper that still holds at least this fraction of the
 # root's text, so a page whose only wrappers are CTA shells is not gutted.
 _HS_WRAPPER_MIN_TEXT_RATIO = 0.5
+
+# Embedded interactive/external elements that cannot function in a standalone
+# offline document (CTAs, embedded forms, video players). MHTML stores their
+# source as a ``cid:`` part, so they render as dead boxes; stripped wholesale
+# like scripts.
+_EMBED_TAGS = ('iframe', 'object', 'embed')
+
+# Tags that carry content even with no text of their own, so an element that
+# wraps one is not "empty". Used by the non-content prune.
+_MEDIA_TAGS = ('img', 'picture', 'svg', 'video', 'audio', 'source', 'canvas',
+               'hr', 'br')
+
+# A standalone text node that is nothing but a run of 4+ separator characters
+# (optionally spaced) is a decorative rule, e.g. the "- - - - -" underline some
+# editors place beneath a heading. The lookahead requires at least one real
+# separator so pure-whitespace nodes (significant inter-word spacing) are left
+# alone.
+_DECOR_SEPARATOR_RE = re.compile(r'^(?=.*[-–—_=*•·~])[\s\-–—_=*•·~]{4,}$')
 _GENERIC_CONTENT_RE = re.compile(
     r'post-body|blog-content|article-body|entry-content|post-content'
 )
@@ -455,7 +473,7 @@ class MHTMLCleaner:
     def clean_html(self, html: str, images: dict[str, bytes]) -> str:
         """Clean HTML content, removing extraneous elements."""
         soup = BeautifulSoup(html, 'html.parser')
-        for tag in soup.find_all(['script', 'noscript']):
+        for tag in soup.find_all(['script', 'noscript', *_EMBED_TAGS]):
             tag.decompose()
 
         article_content = self._find_article_root(soup)
@@ -475,10 +493,38 @@ class MHTMLCleaner:
             article_content = content_span
 
         self._strip_attributes(article_content)
+        self._prune_noncontent(article_content)
 
         title = self._extract_title(soup)
         self.title = title
         return self._build_output_document(article_content, title)
+
+    @staticmethod
+    def _prune_noncontent(root: Tag) -> None:
+        """Remove empty and purely-decorative elements left after cleaning.
+
+        An element is dropped only when it is genuinely empty: it has no text
+        and contains no media (``_MEDIA_TAGS``). Decorative ``- - - -`` rules are
+        removed first as text nodes, which empties any heading/span that held
+        only them, so those collapse here too. This clears blank ``<p></p>``
+        gaps and containers emptied by earlier removals (e.g. a CTA wrapper
+        after its ``<iframe>`` was stripped) without touching elements that hold
+        real but non-alphanumeric content such as ``<sup>®</sup>`` or
+        ``<em>?</em>``. Iterating in reverse document order processes children
+        before parents, so a wrapper emptied by pruning its children is itself
+        pruned in the same pass.
+        """
+        # First drop decorative separator text nodes (e.g. a "- - - -" rule
+        # sitting loose beside real text inside a heading); a heading reduced to
+        # only real text by this is then kept by the element pass below.
+        for text_node in list(root.find_all(string=_DECOR_SEPARATOR_RE)):
+            text_node.extract()
+        for tag in reversed(root.find_all()):
+            if tag.decomposed or tag.name in _MEDIA_TAGS:
+                continue
+            if tag.get_text(strip=True) or tag.find(list(_MEDIA_TAGS)):
+                continue
+            tag.decompose()
 
     @staticmethod
     def _find_hs_content_wrapper(root: Tag) -> Optional[Tag]:

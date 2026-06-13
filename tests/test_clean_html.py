@@ -52,6 +52,84 @@ def test_clean_html_strips_scripts_and_noscript() -> None:
     assert 'kept' in out
 
 
+def test_clean_html_strips_iframes_and_embeds() -> None:
+    """Embedded interactive elements cannot render in a standalone offline file
+    (their src is a cid: part), so iframe/object/embed are removed wholesale.
+    """
+    html = (
+        '<html><body><div class="post-body">'
+        '<p>real text</p>'
+        '<iframe src="cid:frame-abc" title="Embedded CTA"></iframe>'
+        '<object data="cid:obj"></object>'
+        '<embed src="cid:emb">'
+        '</div></body></html>'
+    )
+    out = _clean(html)
+    assert 'real text' in out
+    assert '<iframe' not in out
+    assert '<object' not in out
+    assert '<embed' not in out
+    assert 'cid:' not in out
+
+
+def test_clean_html_prunes_empty_elements() -> None:
+    """Blank <p></p> gaps and containers emptied by earlier removals (e.g. a CTA
+    wrapper whose only child was a stripped iframe) are pruned away.
+    """
+    html = (
+        '<html><body><main id="main-content">'
+        '<p>keeper</p>'
+        '<p>\n   \n</p>'
+        '<div class="cta-wrap"><iframe src="cid:x"></iframe></div>'
+        '</main></body></html>'
+    )
+    out = _clean(html)
+    assert 'keeper' in out
+    # The empty paragraph and the now-empty CTA wrapper div are gone.
+    assert out.count('<p>') == 1
+    assert '<div>' not in out
+
+
+def test_clean_html_removes_decorative_separators() -> None:
+    """A heading that is only a "- - - -" rule is dropped, and a decorative dash
+    run sitting loose beside real heading text is stripped while the text stays.
+    """
+    html = (
+        '<html><body><main id="main-content">'
+        '<h1>- - - - - - - - - -</h1>'
+        '<h2>Real Heading<br>- - - - - - -</h2>'
+        '<span class="x">- - - - -</span>'
+        '<p>body</p>'
+        '</main></body></html>'
+    )
+    out = _clean(html)
+    assert 'Real Heading' in out
+    assert 'body' in out
+    # No 4+ dash run survives anywhere in the output body.
+    import re as _re
+    body = out.split('<body>', 1)[1]
+    assert not _re.search(r'(?:[-–—]\s*){4,}', body)
+
+
+def test_clean_html_keeps_image_only_and_void_elements() -> None:
+    """The prune must not remove media-bearing or void elements that hold no
+    text: an <img> wrapper, a standalone <hr>, and a single em-dash in prose.
+    """
+    from tests.fixtures import PNG_BYTES
+    html = (
+        '<html><body><div class="post-body">'
+        '<figure><img src="cid:pic"></figure>'
+        '<hr>'
+        '<p>a real sentence — with an em dash</p>'
+        '</div></body></html>'
+    )
+    cleaner = MHTMLCleaner(mhtml_path="unused", downloader=lambda url: url)
+    out = cleaner.clean_html(html, images={'pic': PNG_BYTES})
+    assert 'data:image/png;base64,' in out  # figure/img survived
+    assert '<hr' in out                      # void divider survived
+    assert 'em dash' in out                  # lone em-dash prose survived
+
+
 def test_clean_html_strips_inline_attributes() -> None:
     html = (
         '<html><body><article>'
