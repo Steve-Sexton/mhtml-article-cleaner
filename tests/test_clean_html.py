@@ -72,6 +72,26 @@ def test_clean_html_strips_iframes_and_embeds() -> None:
     assert 'cid:' not in out
 
 
+def test_clean_html_strips_style_and_link_elements() -> None:
+    """Input <style>/<link> must not leak into the output: the cleaner applies
+    its own stylesheet and a standalone file should carry no foreign CSS.
+    """
+    html = (
+        '<html><head><link rel="stylesheet" href="x.css"></head><body>'
+        '<div class="post-body">'
+        '<style>.evil{display:none}</style>'
+        '<link rel="stylesheet" href="y.css">'
+        '<p>kept</p>'
+        '</div></body></html>'
+    )
+    out = _clean(html)
+    assert 'kept' in out
+    assert '.evil' not in out
+    assert 'y.css' not in out
+    # The output's own stylesheet (in <head>) is the only style block.
+    assert out.count('<style>') == 1
+
+
 def test_clean_html_prunes_empty_elements() -> None:
     """Blank <p></p> gaps and containers emptied by earlier removals (e.g. a CTA
     wrapper whose only child was a stripped iframe) are pruned away.

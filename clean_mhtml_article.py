@@ -473,7 +473,12 @@ class MHTMLCleaner:
     def clean_html(self, html: str, images: dict[str, bytes]) -> str:
         """Clean HTML content, removing extraneous elements."""
         soup = BeautifulSoup(html, 'html.parser')
-        for tag in soup.find_all(['script', 'noscript', *_EMBED_TAGS]):
+        # Drop executable/embedded/styling elements outright: scripts, the
+        # interactive embeds in _EMBED_TAGS, and stylesheets. Input <style>/
+        # <link> would otherwise leak raw CSS into the output (and inflate the
+        # largest-<div> heuristic); the output gets its own stylesheet instead.
+        for tag in soup.find_all(['script', 'noscript', 'style', 'link',
+                                  *_EMBED_TAGS]):
             tag.decompose()
 
         article_content = self._find_article_root(soup)
@@ -552,6 +557,13 @@ class MHTMLCleaner:
 
     @staticmethod
     def _find_article_root(soup: BeautifulSoup) -> Optional[Tag]:
+        """Locate the article container, or ``None`` if nothing looks like one.
+
+        Tries platform-specific markers first (HubSpot ``post-body`` /
+        ``blog_content``, then a generic ``<article>``, content-class regex, and
+        ``<main>``/main-ish id), falling back to the ``<div>`` with the most
+        text. ``None`` propagates to an ``ArticleNotFoundError`` in the caller.
+        """
         strategies: list[Callable[[], Optional[Tag]]] = [
             lambda: soup.find(class_='post-body'),
             lambda: soup.find(attrs={'data-widget-type': 'blog_content'}),
@@ -570,6 +582,11 @@ class MHTMLCleaner:
 
     @staticmethod
     def _strip_noise_selectors(root: Tag) -> None:
+        """Remove descendants whose CSS class is a known chrome token.
+
+        Matching is whole-token against ``_NOISE_EXACT_TOKENS`` (comments,
+        sharing, related-posts, subscribe, author/byline blocks).
+        """
         for tag in list(root.find_all(class_=True)):
             # Decomposing a noise parent also detaches any noise descendants
             # still sitting in this snapshot; their attrs become None, so skip
@@ -580,6 +597,13 @@ class MHTMLCleaner:
                 tag.decompose()
 
     def _resolve_images(self, root: Tag, images: dict[str, bytes]) -> None:
+        """Resolve every ``<img>`` in ``root`` to an inline data URI where possible.
+
+        Promotes a lazy-loading URL to ``src``, then embeds ``cid:`` and
+        MHTML-known external images, optionally downloading the rest when
+        ``download_missing`` is set. Unresolvable sources keep their original
+        URL. All non-``src``/``alt``/``title`` attributes are stripped.
+        """
         img_tags = root.find_all('img')
         if img_tags:
             logger.info("Processing %d images...", len(img_tags))
@@ -601,6 +625,11 @@ class MHTMLCleaner:
     def _embed_cid(
         img: Tag, src: str, images: dict[str, bytes], index: int
     ) -> bool:
+        """Replace a ``cid:`` ``src`` with the embedded image as a data URI.
+
+        Returns ``True`` on success; leaves ``src`` untouched and returns
+        ``False`` when the CID is unknown or its bytes are not a known image.
+        """
         cid = src[len('cid:'):]
         if cid not in images:
             logger.warning("unresolved CID image %r; src left as-is", cid)
@@ -618,6 +647,12 @@ class MHTMLCleaner:
     def _embed_or_fetch_external(
         self, img: Tag, src: str, images: dict[str, bytes], index: int
     ) -> None:
+        """Embed an ``http(s)`` image, preferring the MHTML copy over the network.
+
+        Uses the MHTML-embedded bytes when present; otherwise downloads only if
+        ``download_missing`` is set, and leaves the URL untouched when the bytes
+        are unrecognized or the fetch fails.
+        """
         if src in images:
             data_uri = _build_data_uri(images[src])
             if data_uri is None:
@@ -645,6 +680,8 @@ class MHTMLCleaner:
 
     @staticmethod
     def _strip_attributes(root: Tag) -> None:
+        """Strip presentational/platform attributes (``style``/``class``/``id``
+        and HubSpot ``data-*``) from every element in ``root``."""
         removable = {
             'style', 'class', 'id',
             'data-hs-cos-general-type', 'data-hs-cos-type',
@@ -657,6 +694,8 @@ class MHTMLCleaner:
 
     @staticmethod
     def _extract_title(soup: BeautifulSoup) -> str:
+        """Return the document ``<title>`` text, falling back to the first
+        ``<h1>``, or ``''`` when neither carries text."""
         title_tag = soup.find('title')
         if title_tag:
             text = title_tag.get_text(strip=True)
@@ -669,6 +708,13 @@ class MHTMLCleaner:
 
     @staticmethod
     def _build_output_document(root: Tag, title: str) -> str:
+        """Assemble the final standalone HTML document.
+
+        Builds a fresh document with the built-in stylesheet, prepends the
+        ``title`` as ``<title>`` and a top-level ``<h1>`` (de-duplicating any
+        matching ``<h1>`` already in ``root``), then moves ``root``'s children
+        into the body. Returns the prettified HTML string.
+        """
         clean = BeautifulSoup(
             '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body></body></html>',
             'html.parser',
@@ -703,7 +749,7 @@ class MHTMLCleaner:
                 p.string = element.strip()
                 clean.body.append(p)
 
-        return str(clean.prettify())
+        return clean.prettify()
 
     def process(
         self,
