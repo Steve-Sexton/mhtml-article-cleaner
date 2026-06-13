@@ -60,6 +60,10 @@ DEFAULT_OUTPUT_FILENAME = 'clean_article.html'
 
 _BOUNDARY_RE = re.compile(rb'boundary=(?:"([^"]+)"|([^\s;]+))', re.IGNORECASE)
 _HS_WRAPPER_RE = re.compile(r'hs_cos_wrapper')
+# HubSpot reuses ``hs_cos_wrapper`` for CTA/widget embeds, not just the article
+# body. Only narrow to a wrapper that still holds at least this fraction of the
+# root's text, so a page whose only wrappers are CTA shells is not gutted.
+_HS_WRAPPER_MIN_TEXT_RATIO = 0.5
 _GENERIC_CONTENT_RE = re.compile(
     r'post-body|blog-content|article-body|entry-content|post-content'
 )
@@ -466,8 +470,8 @@ class MHTMLCleaner:
 
         # Narrow to the HubSpot wrapper BEFORE stripping class attributes,
         # otherwise the class-based lookup never matches.
-        content_span = article_content.find('span', class_=_HS_WRAPPER_RE)
-        if content_span:
+        content_span = self._find_hs_content_wrapper(article_content)
+        if content_span is not None:
             article_content = content_span
 
         self._strip_attributes(article_content)
@@ -475,6 +479,30 @@ class MHTMLCleaner:
         title = self._extract_title(soup)
         self.title = title
         return self._build_output_document(article_content, title)
+
+    @staticmethod
+    def _find_hs_content_wrapper(root: Tag) -> Optional[Tag]:
+        """Return the HubSpot ``hs_cos_wrapper`` holding the article body, else None.
+
+        HubSpot tags its rich-text post body with ``hs_cos_wrapper``, but reuses
+        the same class for CTA and other widget embeds (e.g.
+        ``hs_cos_wrapper_type_cta``). On a blog post the body wrapper holds
+        essentially all of the text, so narrowing to it strips the surrounding
+        post chrome. On a landing/marketing page the only wrappers may be CTA
+        shells with no article text — narrowing to one of those would discard
+        the whole article. Guard against that by narrowing only to the richest
+        wrapper, and only when it still holds a majority of the root's text.
+        """
+        candidates = root.find_all('span', class_=_HS_WRAPPER_RE)
+        if not candidates:
+            return None
+        root_len = len(root.get_text(strip=True))
+        if not root_len:
+            return None
+        best = max(candidates, key=lambda s: len(s.get_text(strip=True)))
+        if len(best.get_text(strip=True)) >= root_len * _HS_WRAPPER_MIN_TEXT_RATIO:
+            return best
+        return None
 
     @staticmethod
     def _find_article_root(soup: BeautifulSoup) -> Optional[Tag]:

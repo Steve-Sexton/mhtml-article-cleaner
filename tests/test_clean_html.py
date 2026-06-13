@@ -100,17 +100,46 @@ def test_clean_html_narrows_to_hs_cos_wrapper() -> None:
     """Regression: the hs_cos_wrapper unwrap must run BEFORE ``class`` is
     stripped, otherwise the class-based lookup never matches and HubSpot
     articles get the outer post-body chrome instead of the article body.
+
+    The wrapper holds the bulk of the text (as on a real blog post), so the
+    narrowing fires and the small outer chrome sibling is dropped.
     """
     html = (
         '<html><head><title>HS</title></head><body>'
         '<div class="post-body">'
-        '<span class="hs_cos_wrapper"><p>narrow</p></span>'
-        '<p>outer-sibling</p>'
+        '<span class="hs_cos_wrapper">'
+        '<p>This is the real article body, long enough to dominate the text.</p>'
+        '<p>A second substantial paragraph keeps the wrapper as the majority.</p>'
+        '</span>'
+        '<p>nav</p>'
         '</div></body></html>'
     )
     out = _clean(html)
-    assert 'narrow' in out
-    assert 'outer-sibling' not in out
+    assert 'real article body' in out
+    assert 'nav' not in out
+
+
+def test_clean_html_does_not_narrow_to_cta_only_wrapper() -> None:
+    """Regression (Cause Mapping landing page): when the only hs_cos_wrapper
+    spans are CTA/widget shells with little or no text, the cleaner must NOT
+    narrow to one of them and discard the real article body sitting beside
+    them in the root.
+    """
+    html = (
+        '<html><head><title>Landing</title></head><body>'
+        '<main id="main-content">'
+        '<div class="rich-text">'
+        '<p>The genuine article content that must survive cleaning. '
+        'It has several sentences so it clearly dominates the page text.</p>'
+        '<p>Another paragraph of real article body for good measure.</p>'
+        '</div>'
+        '<span class="hs_cos_wrapper hs_cos_wrapper_type_cta">'
+        '<a href="#">Download</a></span>'
+        '</main></body></html>'
+    )
+    out = _clean(html)
+    assert 'genuine article content that must survive' in out
+    assert 'Another paragraph of real article body' in out
 
 
 def test_clean_html_warns_on_unresolved_cid(caplog) -> None:
