@@ -58,22 +58,25 @@ python clean_mhtml_article.py input.mhtml custom_output.html
 
 ### Batch (all `.mhtml` files in a folder)
 
+Bundled examples live in [`samples/before/`](samples/before), with cleaned
+output in [`samples/after/`](samples/after); see [`samples/README.md`](samples/README.md).
+
 PowerShell:
 
 ```powershell
-Get-ChildItem -Filter *.mhtml | ForEach-Object {
+Get-ChildItem samples\before -Filter *.mhtml | ForEach-Object {
     python clean_mhtml_article.py --force $_.FullName
 }
 ```
 
-Add `-Recurse` to descend into subfolders, or `-Path "C:\path\to\mhtmls"` to
-target a different directory. Drop `--force` if you want the script to refuse
-to overwrite existing outputs.
+Add `-Recurse` to descend into subfolders, or point `-Path` at a different
+directory. Drop `--force` if you want the script to refuse to overwrite
+existing outputs.
 
 Bash:
 
 ```bash
-for f in *.mhtml; do python clean_mhtml_article.py --force "$f"; done
+for f in samples/before/*.mhtml; do python clean_mhtml_article.py --force "$f"; done
 ```
 
 ### Flags
