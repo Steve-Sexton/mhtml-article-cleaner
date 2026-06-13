@@ -202,6 +202,10 @@ The test suite covers:
 
 ## Version History
 
+- **v2.5.1**: Hardening and docs follow-up.
+  - Strip input `<style>`/`<link>` alongside scripts and embeds, so foreign CSS cannot leak into the standalone output (which carries its own stylesheet) and `<style>` text no longer inflates the largest-`<div>` fallback. No output change across the bundled samples.
+  - Filled in docstrings across the private helpers; removed a redundant `str()` around `prettify()`.
+
 - **v2.5**: Content-fidelity pass (from a full before/after comparison of the bundled samples).
   - Fixed HubSpot landing/marketing pages being gutted: the `hs_cos_wrapper` narrowing previously collapsed to the first matching span, which on those pages is a CTA shell — discarding the entire article. It now selects the richest wrapper and narrows only when it still holds a majority of the root's text.
   - Strip dead embedded elements (`iframe`, `object`, `embed`) that reference `cid:` parts and cannot render in a standalone offline file (CTAs, embedded forms, video players).
