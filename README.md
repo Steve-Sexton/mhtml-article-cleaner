@@ -8,6 +8,10 @@
 
 A Python utility to extract clean article content from MHTML files, removing navigation, headers, footers, ads, and other extraneous elements while preserving article text, images, title, and formatting.
 
+![Before and after: the original saved .mhtml page with navigation, a CTA banner, an email sign-up box, and a share/related-posts sidebar, next to the cleaned output with just the title, body text, and inline diagrams](docs/before-after.png)
+
+*Left: the original saved `.mhtml` (nav bars, CTA banner, email-capture box, share/related sidebar). Right: the cleaned, standalone output — just the article.*
+
 ## Features
 
 - **Automatic Content Detection**: Intelligently identifies article content using multiple strategies (post-body, blog-content, article tags, etc.)
