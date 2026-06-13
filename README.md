@@ -120,6 +120,10 @@ for f in *.mhtml; do python clean_mhtml_article.py --force "$f"; done
 
 ## Output
 
+The cleaned, standalone HTML rendered in a browser — title, body text, and the article's images embedded inline, with the surrounding site chrome stripped:
+
+![The cleaned article rendered in a browser, showing the title, readable body text, and inline diagrams](docs/article-output.png)
+
 - Title extracted from `<title>` (or first `<h1>` as fallback) and rendered as a top-level `<h1>`.
 - All paragraphs, headings, lists, and blockquotes preserved.
 - Embedded images inline as base64 data URIs (if they were present in the MHTML, or if `--download-missing` was used).
