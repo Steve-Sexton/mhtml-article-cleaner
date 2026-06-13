@@ -1,6 +1,10 @@
 # MHTML Article Cleaner
 
+> CLI that extracts clean, readable article content from MHTML files — strips nav/ads/chrome, embeds images as data URIs, offline by default.
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
+[![Topics](https://img.shields.io/badge/topics-mhtml%20%7C%20article--extraction%20%7C%20beautifulsoup%20%7C%20cli-informational.svg)](https://github.com/Steve-Sexton/mhtml-article-cleaner)
 
 A Python utility to extract clean article content from MHTML files, removing navigation, headers, footers, ads, and other extraneous elements while preserving article text, images, title, and formatting.
 
