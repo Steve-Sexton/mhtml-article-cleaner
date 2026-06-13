@@ -198,6 +198,12 @@ The test suite covers:
 
 ## Version History
 
+- **v2.5**: Content-fidelity pass (from a full before/after comparison of the bundled samples).
+  - Fixed HubSpot landing/marketing pages being gutted: the `hs_cos_wrapper` narrowing previously collapsed to the first matching span, which on those pages is a CTA shell — discarding the entire article. It now selects the richest wrapper and narrows only when it still holds a majority of the root's text.
+  - Strip dead embedded elements (`iframe`, `object`, `embed`) that reference `cid:` parts and cannot render in a standalone offline file (CTAs, embedded forms, video players).
+  - Prune genuinely empty elements (blank `<p>`, containers emptied by earlier removals such as a CTA wrapper after its `<iframe>` is gone) and decorative separator rules (a loose `- - - -` beside heading text, or a dashes-only heading/span). Inline content with no letters or digits, e.g. `<sup>®</sup>` or `<em>?</em>`, is preserved.
+  - Reorganized the bundled examples into `samples/before/` (`.mhtml` inputs) and `samples/after/` (cleaned output).
+
 - **v2.4**: Robustness follow-up.
   - Fixed a crash when a noise element (e.g. an `author-box`) contained another noise element (e.g. a `comment`): decomposing the parent detached the child mid-iteration, and the snapshot loop then dereferenced its now-`None` attrs.
   - Lazy-loaded images are resolved from `data-src`/`data-lazy-src`/`data-original`/`srcset` when `src` is empty or a `data:` placeholder.
