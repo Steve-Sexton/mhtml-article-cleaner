@@ -7,6 +7,10 @@ name = "mhtml-article-cleaner"
 version = "2.4.0"
 description = "Extract clean article content from MHTML files."
 requires-python = ">=3.9"
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+]
 dependencies = [
     "beautifulsoup4>=4.10,<5",
 ]

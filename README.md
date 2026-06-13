@@ -1,5 +1,7 @@
 # MHTML Article Cleaner
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A Python utility to extract clean article content from MHTML files, removing navigation, headers, footers, ads, and other extraneous elements while preserving article text, images, title, and formatting.
 
 ## Features
@@ -215,4 +217,4 @@ The test suite covers:
 
 ## License
 
-This script is provided as-is for article extraction and cleanup purposes.
+Released under the [MIT License](LICENSE). Copyright (c) 2026 Steve Sexton.
