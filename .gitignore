@@ -1,0 +1,24 @@
+# Python build / packaging artifacts
+build/
+dist/
+*.egg-info/
+__pycache__/
+*.py[cod]
+
+# Test / tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Generated article output (run artifacts, reproducible from the .mhtml inputs).
+# Root-level .html/.pdf here are tool exports, not source.
+/*.html
+/*.pdf
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

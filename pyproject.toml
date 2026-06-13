@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mhtml-article-cleaner"
+version = "2.4.0"
+description = "Extract clean article content from MHTML files."
+requires-python = ">=3.9"
+dependencies = [
+    "beautifulsoup4>=4.10,<5",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+clean-mhtml = "clean_mhtml_article:main"
+
+[tool.setuptools]
+py-modules = ["clean_mhtml_article"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
